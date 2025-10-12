@@ -1,0 +1,111 @@
+/* Body Attributes */
+body {
+    font-family: "Gill Sans";
+    background-color: #F7F9FB;
+    min-height: 100vh;
+    height: 100%;
+}
+
+/* Page Header */
+.header {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: #0D3559;
+    height: 12vh;
+}
+.header_logo {
+    position: absolute;
+    left: 30px;
+    height: 70%;
+    background-color: #E8F1FB;
+    margin: 0px 0px 0px 50px;
+}
+.header_title {
+    color: white;
+    font-size: 50px;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+
+/* Information */
+.information_div {
+    display: flex;
+    flex-direction: row;
+    height: 30vh;
+    border-radius: 10px;
+    margin: 10px 100px;
+    background-color: #1D62A8;
+}
+.information_logo {
+    background-color: #174D7A;
+    border-radius: 10px 0px 0px 10px;
+}
+.main_information_div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+    color: white;
+    padding: 15px;
+}
+.information_title {
+    font-size: 40px;
+    white-space: nowrap;
+}
+.information {
+    font-size: 18px;
+}
+
+/* Radio Button Selection */
+.radio_button_div {
+    margin: 20px;
+    text-align: center;
+}
+.radio_button_div p {
+    font-size: 24px;
+    font-weight: 600;
+}
+.radio-filter {
+    text-align: center;
+}
+
+/* Drop Down Selection */
+.dropdown_div {
+    margin: 20px;
+}
+.dropdown_div p {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+}
+.dropdown-filter {
+    width: 70%;
+    margin: 0% 15%;
+}
+
+/* Table View */
+.table_view {
+    width: 90%;
+    border: solid;
+    border-width: 2px;
+    border-collapse: separate;
+    margin: 0px 5% 20px 5%;
+}
+.table_column_name {
+    font-size: 15px !important;
+    color: #FFFFFF !important;
+    background-color: #0D3559;
+    text-align: center !important;
+    border: None !important;
+}
+.table_row {
+    background-color: #EAF2F9;
+}
+.table_row:hover {
+  background-color: #D9E6F5;
+  transition: background-color 0.2s ease;
+}

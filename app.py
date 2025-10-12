@@ -1,71 +1,99 @@
 #Importing Libraries
-from dash import Dash, dcc, html, Input, Output
-from plotly.express import data
+import os, io, re
+import boto3
 import pandas as pd
+from plotly.express import data
+from dash import Dash, dcc, html, Input, Output
 import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
+from dotenv import load_dotenv
+
+# Credentials
+load_dotenv()
+aws_region = "ap-south-1"
+aws_access_key_id = os.environ.get("aws_access_key_id")
+aws_secret_access_key = os.environ.get("aws_secret_access_key")
+
+# Image Source
+image_source_location = "https://github-projects-resume.s3.ap-south-1.amazonaws.com/Rent_Support/resources/"
 
 #Reading Data File
-data = pd.read_csv(r"data_charity.csv")
-data["inside_vic"] = data["State"].apply(lambda x: "Only Victorian support organisations" if x in ['Victoria', 'VIC','Vic', 'victoria', 'St Helena Victoria', 'VICTORIA', 'Benalla Victoria', 'vic' 'Victoria,', 'VIC ', 'Victora'] else "Support organisations that operate across Australia including Victoria")
+def read_s3():
+    s3_data_path = "s3://github-projects-resume/Rent_Support/data/charity_data.csv"
+    s3_client = boto3.client("s3", region_name=aws_region, aws_access_key_id=os.environ.get("aws_access_key_id"),
+                                    aws_secret_access_key=os.environ.get("aws_secret_access_key"))
+
+    bucket_name = s3_data_path.split("/")[2]
+    file_key = "/".join(s3_data_path.split("/")[3:])
+    obj = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+    data = obj['Body'].read().decode('utf-8')
+
+    df = pd.read_csv(io.StringIO(data), header=0)
+    df["inside_vic"] = df["State"].apply(
+        lambda x: "Victorian-based support organisations" if x in ['Victoria', 'VIC', 'Vic', 'victoria', 'St Helena Victoria', 'VICTORIA', 'Benalla Victoria',
+                              'vic' 'Victoria,', 'VIC ', 'Victora'] else "Include national organisations that also operate in Victoria")
+    return df
+
+data = read_s3()
+
 
 #Webpage HTML
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
 server = app.server
-app.layout = html.Div(children=[
-    html.Br(),
-    html.H3('Select your location preference for the Support organisation', style = {'textAlign':'center'}),
-    html.P('''Please note that all the organisations given below operate in Victoria. 
-           There are some support service organisations that are based on the other states of Australia, 
-           but all of them operate in Victoria remotely. All the organisation details that you see, operate in 
-           Victoria, Australia.''', style = {'margin-left': '10%', 'width': '80%', 'textAlign':'center'}),
+app.layout = html.Div(className="main_page", id="main_page", children=[
+    html.Div(className="header", id="header", children=[
+        html.Img(className="header_logo", src=image_source_location+"header_support.png"),
+        html.P(className="header_title", children="Melbourne Rent Support Finder")
+    ]),
+
+    html.Div(className="information_div", id="information_div", children=[
+        html.Img(className="information_logo", src=image_source_location+"information_logo.png"),
+        html.Div(className="main_information_div", children=[
+            html.P(className="information_title", children="Select Your Location Preference for the Support Organisation"),
+            html.P(className="information", children="Please note that all organisations listed below operate within Victoria, Australia. Some support service organisations are based in other states, but they deliver services remotely across Victoria. All organisation details provided here apply to services available in Victoria.")
+        ])
+    ]),
+
+    html.Div(className="radio_button_div", children=[
+        html.P(children="Please select your preferred support organisation type:"),
+        dcc.RadioItems(className="radio-filter", id='radio-filter',
+            options=[{'label': i, 'value': i} for i in data['inside_vic'].unique()],
+            value = data['inside_vic'].unique()[0],
+            labelStyle={'display': 'inline-block', 'margin-right': '20px'},
+            inputStyle={'margin-right': '10px'}
+        )
+    ]),
     
-    html.Br(),
-    html.H4('Please enter your preferred support organisation:', style = {'textAlign':'center'}),
-    
-    dcc.RadioItems(
-        id='radio-filter',
-        options=[{'label': i, 'value': i} for i in data['inside_vic'].unique()],
-        value = data['inside_vic'].unique()[0],
-        labelStyle={'display': 'inline-block', 'margin-right': '20px'},
-        inputStyle={'margin-right': '10px'},
-        style = {'textAlign':'center'}
-    ),
-    
-    html.Br(),
-    html.H4('Select from the given Suburbs:', style = {'textAlign':'center'}),
-    dcc.Dropdown(
-        id='dropdown-filtered',
-        options=[],
-        value=None,
-        multi = True,
-        style={'margin-left': '15%', 'width': '70%'}
-    ),
-    
-    html.Br(),
-    html.Div(id='output', style={'width': '90%', 'border': 'solid', 'border-width': '2px', 'border-collapse': 'separate', 'margin-left':'5%'}),
-    html.Br(),
-    html.Br()
-], style={'backgroundColor': '#EAE8DC', 'minHeight': '100vh', 'height': '100%'})
+    html.Div(className="dropdown_div", children=[
+        html.P("Select your Suburb:"),
+        dcc.Dropdown(className="dropdown-filter", id='dropdown-filter',
+            options=[], value=None, multi = True
+        )
+    ]),
+
+    dmc.MantineProvider(html.Div(className= "table_view", id='table_view'))
+])
+
 
 @app.callback(
-    Output('dropdown-filtered', 'options'),
+    Output('dropdown-filter', 'options'),
     Input('radio-filter', 'value')
 )
-
 def update_dropdown(value):
-    if(value == "Only Victorian organisations"):
+    if(value == "Victorian-based support organisations"):
         filtered_data = data[data['inside_vic'] == value]
     else:
         filtered_data = data
+
     list_of_suburbs = sorted([str(suburb) for suburb in filtered_data["Town_City"].unique()])
     options = [{'label': str(suburb), 'value': str(suburb)} for suburb in list_of_suburbs]
     return options
 
-@app.callback(
-    Output('output', 'children'),
-    Input('dropdown-filtered', 'value')
-)
 
+@app.callback(
+    Output('table_view', 'children'),
+    Input('dropdown-filter', 'value')
+)
 def update_table(value):
     final_df = pd.DataFrame(columns=["Name", "Website", "Type", "E-mail", "Phone number"])
 
@@ -74,14 +102,15 @@ def update_table(value):
         filtered_df = filtered_df[['Charity_Legal_Name', 'Charity_Website', 'Advancing_Education', 'Promoting_or_protecting_human_rights', 'Advancing_social_or_public_welfare', 'Children', 'Families', 'Females', 'Financially_Disadvantaged', 'Males', 'People_at_risk_of_homelessness', 'email', 'contact']]
 
         for index, row in filtered_df.iterrows():
-            charity_type = [col for col, value in row.items() if str(value).strip() == "Y"]
-            final_df = final_df._append({"Name": row['Charity_Legal_Name'], "Website": row['Charity_Website'], "Type": str(charity_type).replace("[", "").replace("]", ""), "E-mail": row['email'],"Phone number": row['contact']}, ignore_index=True)
+            charity_type = ", ".join([col.replace("_", " ") for col, value in row.items() if str(value).strip() == "Y"])
+            final_df = final_df._append({"Name": row['Charity_Legal_Name'].replace("_", " "), "Website": row['Charity_Website'], "Type": charity_type, "E-mail": row['email'],"Phone number": re.sub(r'\D', '', str(row['contact'])) }, ignore_index=True)
 
-    table_data = [html.Tr([html.Th(col, style={'width':'27%', 'padding': '10px', 'border-bottom': '2px solid black'}) for col in final_df.columns])] + \
-                 [html.Tr([html.Td(final_df.iloc[i][col], style={'padding': '10px'})  if col != "Website" else html.Td(html.A(final_df.iloc[i][col], href = final_df.iloc[i][col])) for col in final_df.columns])
-                  for i in range(len(final_df))]
-    return table_data
+    columns = [html.Thead( html.Tr([html.Th(className="table_column_name", children=col) for col in final_df.columns]) )]
+    rows = [html.Tr([html.Td(className="table_row", children=final_df.iloc[i][col])  if col != "Website" else html.Td(className="table_row", children=html.A(final_df.iloc[i][col], href = final_df.iloc[i][col], target="_blank")) for col in final_df.columns]) for i in range(len(final_df))]
+    body = [html.Tbody(rows)]
+
+    return dmc.Table(children = columns + body, withColumnBorders=True)
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False, host="0.0.0.0", port=8002)
+    app.run(debug=False, host="0.0.0.0", port=8002)
