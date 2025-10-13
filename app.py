@@ -6,6 +6,7 @@ from plotly.express import data
 from dash import Dash, dcc, html, Input, Output
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
+from flask_caching import Cache
 from dotenv import load_dotenv
 
 # Credentials
@@ -17,7 +18,13 @@ aws_secret_access_key = os.environ.get("aws_secret_access_key")
 # Image Source
 image_source_location = "https://github-projects-resume.s3.ap-south-1.amazonaws.com/Rent_Support/resources/"
 
-#Reading Data File
+# Defining App
+app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
+server = app.server
+cache = Cache(server, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 600})
+
+# Reading Data File
+@cache.memoize(timeout=86400)
 def read_s3():
     s3_data_path = "s3://github-projects-resume/Rent_Support/data/charity_data.csv"
     s3_client = boto3.client("s3", region_name=aws_region, aws_access_key_id=os.environ.get("aws_access_key_id"),
@@ -30,17 +37,15 @@ def read_s3():
 
     df = pd.read_csv(io.StringIO(data), header=0)
     df["inside_vic"] = df["State"].apply(
-        lambda x: "Victorian-based support organisations" if x in ['Victoria', 'VIC', 'Vic', 'victoria', 'St Helena Victoria', 'VICTORIA', 'Benalla Victoria',
+        lambda x: "Victoria-based support organisations" if x in ['Victoria', 'VIC', 'Vic', 'victoria', 'St Helena Victoria', 'VICTORIA', 'Benalla Victoria',
                               'vic' 'Victoria,', 'VIC ', 'Victora'] else "Include national organisations that also operate in Victoria")
     return df
 
-data = read_s3()
 
-
-#Webpage HTML
-app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
-server = app.server
+# Webpage HTML Layout
 app.layout = html.Div(className="main_page", id="main_page", children=[
+    dcc.Location(id='hidden_trigger_url', refresh=False),
+
     html.Div(className="header", id="header", children=[
         html.Img(className="header_logo", src=image_source_location+"header_support.png"),
         html.P(className="header_title", children="Melbourne Rent Support Finder")
@@ -57,8 +62,6 @@ app.layout = html.Div(className="main_page", id="main_page", children=[
     html.Div(className="radio_button_div", children=[
         html.P(children="Please select your preferred support organisation type:"),
         dcc.RadioItems(className="radio-filter", id='radio-filter',
-            options=[{'label': i, 'value': i} for i in data['inside_vic'].unique()],
-            value = data['inside_vic'].unique()[0],
             labelStyle={'display': 'inline-block', 'margin-right': '20px'},
             inputStyle={'margin-right': '10px'}
         )
@@ -76,11 +79,23 @@ app.layout = html.Div(className="main_page", id="main_page", children=[
 
 
 @app.callback(
+    [Output("radio-filter", "options"), Output("radio-filter", "value")],
+    Input("hidden_trigger_url", "pathname")
+)
+def update_radio(_):
+    data = read_s3()
+    values = data['inside_vic'].unique()
+    options = [{'label': i, 'value': i} for i in values]
+    return options, values[0]
+
+
+@app.callback(
     Output('dropdown-filter', 'options'),
     Input('radio-filter', 'value')
 )
 def update_dropdown(value):
-    if(value == "Victorian-based support organisations"):
+    data = read_s3()
+    if(value == "Victoria-based support organisations"):
         filtered_data = data[data['inside_vic'] == value]
     else:
         filtered_data = data
@@ -95,6 +110,7 @@ def update_dropdown(value):
     Input('dropdown-filter', 'value')
 )
 def update_table(value):
+    data = read_s3()
     final_df = pd.DataFrame(columns=["Name", "Website", "Type", "E-mail", "Phone number"])
 
     if((value is not None) and (len(value) != 0)):
