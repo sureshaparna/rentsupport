@@ -2,7 +2,6 @@
 import os, io, re
 import boto3
 import pandas as pd
-from plotly.express import data
 from dash import Dash, dcc, html, Input, Output
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
