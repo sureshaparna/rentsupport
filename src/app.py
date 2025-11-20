@@ -19,6 +19,7 @@ image_source_location = "https://github-projects-resume.s3.ap-south-1.amazonaws.
 
 # Defining App
 app = Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
+app.title = "Rent Support"
 server = app.server
 cache = Cache(server, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 600})
 
