@@ -8,11 +8,13 @@ import dash_mantine_components as dmc
 from flask_caching import Cache
 from dotenv import load_dotenv
 
-# Credentials
+# Loading Environment
 load_dotenv()
+
+# Credentials
 aws_region = "ap-south-1"
-aws_access_key_id = os.environ.get("aws_access_key_id")
-aws_secret_access_key = os.environ.get("aws_secret_access_key")
+for key, value in os.environ.items():
+    globals()[key.lower()] = value
 
 # Image Source
 image_source_location = "https://github-projects-resume.s3.ap-south-1.amazonaws.com/Rent_Support/resources/"
@@ -27,8 +29,8 @@ cache = Cache(server, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOU
 @cache.memoize(timeout=86400)
 def read_s3():
     s3_data_path = "s3://github-projects-resume/Rent_Support/data/charity_data.csv"
-    s3_client = boto3.client("s3", region_name=aws_region, aws_access_key_id=os.environ.get("aws_access_key_id"),
-                                    aws_secret_access_key=os.environ.get("aws_secret_access_key"))
+    s3_client = boto3.client("s3", region_name=aws_region, aws_access_key_id=aws_access_key_id,
+                                    aws_secret_access_key=aws_secret_access_key)
 
     bucket_name = s3_data_path.split("/")[2]
     file_key = "/".join(s3_data_path.split("/")[3:])
